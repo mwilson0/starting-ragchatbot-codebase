@@ -11,22 +11,24 @@ class SearchResults:
     documents: List[str]
     metadata: List[Dict[str, Any]]
     distances: List[float]
+    links: List[Optional[str]] = None  # Lesson links corresponding to each result
     error: Optional[str] = None
-    
+
     @classmethod
     def from_chroma(cls, chroma_results: Dict) -> 'SearchResults':
         """Create SearchResults from ChromaDB query results"""
         return cls(
             documents=chroma_results['documents'][0] if chroma_results['documents'] else [],
             metadata=chroma_results['metadatas'][0] if chroma_results['metadatas'] else [],
-            distances=chroma_results['distances'][0] if chroma_results['distances'] else []
+            distances=chroma_results['distances'][0] if chroma_results['distances'] else [],
+            links=[]
         )
-    
+
     @classmethod
     def empty(cls, error_msg: str) -> 'SearchResults':
         """Create empty results with error message"""
-        return cls(documents=[], metadata=[], distances=[], error=error_msg)
-    
+        return cls(documents=[], metadata=[], distances=[], links=[], error=error_msg)
+
     def is_empty(self) -> bool:
         """Check if results are empty"""
         return len(self.documents) == 0
@@ -58,20 +60,20 @@ class VectorStore:
             embedding_function=self.embedding_function
         )
     
-    def search(self, 
+    def search(self,
                query: str,
                course_name: Optional[str] = None,
                lesson_number: Optional[int] = None,
                limit: Optional[int] = None) -> SearchResults:
         """
         Main search interface that handles course resolution and content search.
-        
+
         Args:
             query: What to search for in course content
             course_name: Optional course name/title to filter by
             lesson_number: Optional lesson number to filter by
             limit: Maximum results to return
-            
+
         Returns:
             SearchResults object with documents and metadata
         """
@@ -81,21 +83,36 @@ class VectorStore:
             course_title = self._resolve_course_name(course_name)
             if not course_title:
                 return SearchResults.empty(f"No course found matching '{course_name}'")
-        
+
         # Step 2: Build filter for content search
         filter_dict = self._build_filter(course_title, lesson_number)
-        
+
         # Step 3: Search course content
         # Use provided limit or fall back to configured max_results
         search_limit = limit if limit is not None else self.max_results
-        
+
         try:
             results = self.course_content.query(
                 query_texts=[query],
                 n_results=search_limit,
                 where=filter_dict
             )
-            return SearchResults.from_chroma(results)
+            search_results = SearchResults.from_chroma(results)
+
+            # Step 4: Lookup lesson links for each result
+            links = []
+            for metadata in search_results.metadata:
+                course_title_meta = metadata.get('course_title')
+                lesson_num = metadata.get('lesson_number')
+
+                if course_title_meta and lesson_num is not None:
+                    link = self.get_lesson_link(course_title_meta, lesson_num)
+                    links.append(link)
+                else:
+                    links.append(None)
+
+            search_results.links = links
+            return search_results
         except Exception as e:
             return SearchResults.empty(f"Search error: {str(e)}")
     
