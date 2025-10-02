@@ -2,9 +2,11 @@
 Tests for DocumentProcessor
 Specifically tests for chunk formatting consistency bug
 """
-import pytest
-import tempfile
+
 import os
+import tempfile
+
+import pytest
 from document_processor import DocumentProcessor
 
 
@@ -35,7 +37,9 @@ Lesson 3: Functions
 Lesson Link: https://example.com/python/lesson3
 Functions are reusable blocks of code. They help organize your code and make it more maintainable. You define functions using the def keyword.
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8') as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".txt", delete=False, encoding="utf-8"
+        ) as f:
             f.write(content)
             temp_path = f.name
 
@@ -62,8 +66,9 @@ Functions are reusable blocks of code. They help organize your code and make it 
         # According to document_processor.py line 186, they should start with "Lesson X content:"
         if len(lesson_chunks[1]) > 0:
             first_lesson_chunk = lesson_chunks[1][0].content
-            assert first_lesson_chunk.startswith("Lesson 1 content:"), \
-                f"Lesson 1 first chunk should start with 'Lesson 1 content:' but got: {first_lesson_chunk[:50]}"
+            assert first_lesson_chunk.startswith(
+                "Lesson 1 content:"
+            ), f"Lesson 1 first chunk should start with 'Lesson 1 content:' but got: {first_lesson_chunk[:50]}"
 
         if len(lesson_chunks[2]) > 0:
             second_lesson_chunk = lesson_chunks[2][0].content
@@ -83,7 +88,9 @@ Functions are reusable blocks of code. They help organize your code and make it 
             # Expected: "Lesson 3 content:" (consistent with other lessons)
             # Actual: "Course Python Programming Lesson 3 content:" (bug)
             is_consistent = last_lesson_chunk.startswith("Lesson 3 content:")
-            is_buggy = last_lesson_chunk.startswith("Course Python Programming Lesson 3 content:")
+            is_buggy = last_lesson_chunk.startswith(
+                "Course Python Programming Lesson 3 content:"
+            )
 
             if is_buggy and not is_consistent:
                 pytest.fail(
@@ -103,7 +110,9 @@ Functions are reusable blocks of code. They help organize your code and make it 
 
         # Each chunk should be within size limit
         for chunk in chunks:
-            assert len(chunk) <= processor.chunk_size + 100  # Some tolerance for overlap
+            assert (
+                len(chunk) <= processor.chunk_size + 100
+            )  # Some tolerance for overlap
 
     def test_chunk_overlap(self, processor):
         """Test that chunks have appropriate overlap"""
@@ -175,7 +184,9 @@ Functions are reusable blocks of code. They help organize your code and make it 
     def test_empty_file_handling(self, processor):
         """Test handling of empty or minimal files"""
         content = "Course Title: Empty Course\n"
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8') as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".txt", delete=False, encoding="utf-8"
+        ) as f:
             f.write(content)
             temp_path = f.name
 
@@ -194,7 +205,9 @@ Course Instructor: Test
 Lesson 1: Test Lesson
 Some content here.
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8') as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".txt", delete=False, encoding="utf-8"
+        ) as f:
             f.write(content)
             temp_path = f.name
 
@@ -217,7 +230,9 @@ web development, data science, automation, and more. It has a clear syntax that
 makes it beginner-friendly and productive. The language supports multiple programming
 paradigms including procedural, object-oriented, and functional programming.
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8') as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".txt", delete=False, encoding="utf-8"
+        ) as f:
             f.write(content)
             temp_path = f.name
 
@@ -236,7 +251,9 @@ Course Instructor: José García
 Lesson 1: Introduction
 Content with émojis 🎉 and spëcial çhars.
 """
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8') as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".txt", delete=False, encoding="utf-8"
+        ) as f:
             f.write(content)
             temp_path = f.name
 
@@ -247,7 +264,9 @@ Content with émojis 🎉 and spëcial çhars.
         finally:
             os.remove(temp_path)
 
-    def test_all_lessons_except_last_have_same_prefix_format(self, processor, sample_course_file):
+    def test_all_lessons_except_last_have_same_prefix_format(
+        self, processor, sample_course_file
+    ):
         """Test that lessons 1 and 2 have the same prefix format"""
         course, chunks = processor.process_course_document(sample_course_file)
 
@@ -256,14 +275,16 @@ Content with émojis 🎉 and spëcial çhars.
         lesson2_chunks = [c for c in chunks if c.lesson_number == 2]
 
         if lesson1_chunks and lesson2_chunks:
-            chunk1_prefix = lesson1_chunks[0].content.split(':')[0]
-            chunk2_prefix = lesson2_chunks[0].content.split(':')[0]
+            chunk1_prefix = lesson1_chunks[0].content.split(":")[0]
+            chunk2_prefix = lesson2_chunks[0].content.split(":")[0]
 
             # Both should have "Lesson X content" format (without "Course" prefix)
-            assert "Course" not in chunk1_prefix, \
-                f"Lesson 1 should not have 'Course' in prefix: {chunk1_prefix}"
-            assert "Course" not in chunk2_prefix, \
-                f"Lesson 2 should not have 'Course' in prefix: {chunk2_prefix}"
+            assert (
+                "Course" not in chunk1_prefix
+            ), f"Lesson 1 should not have 'Course' in prefix: {chunk1_prefix}"
+            assert (
+                "Course" not in chunk2_prefix
+            ), f"Lesson 2 should not have 'Course' in prefix: {chunk2_prefix}"
 
     def test_last_lesson_has_different_prefix_bug(self, processor, sample_course_file):
         """
@@ -278,7 +299,9 @@ Content with émojis 🎉 and spëcial çhars.
             last_chunk_content = lesson3_chunks[0].content
 
             # Check if it has the buggy "Course ... Lesson" prefix
-            has_course_prefix = last_chunk_content.startswith("Course Python Programming Lesson")
+            has_course_prefix = last_chunk_content.startswith(
+                "Course Python Programming Lesson"
+            )
 
             if has_course_prefix:
                 pytest.fail(

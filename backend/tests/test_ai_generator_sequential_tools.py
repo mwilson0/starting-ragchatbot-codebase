@@ -2,10 +2,12 @@
 Tests for AIGenerator sequential tool calling functionality
 Tests the ability to make up to 2 sequential tool calls with reasoning between calls
 """
-import pytest
+
 from unittest.mock import Mock, patch
+
+import pytest
 from ai_generator import AIGenerator
-from search_tools import ToolManager, CourseSearchTool
+from search_tools import CourseSearchTool, ToolManager
 from vector_store import SearchResults
 
 
@@ -27,7 +29,7 @@ class TestAIGeneratorSequentialTools:
 
     def test_zero_rounds_general_knowledge(self, ai_generator, tool_manager):
         """Test: No tools needed (0 rounds) - general knowledge question"""
-        with patch.object(ai_generator.client.messages, 'create') as mock_create:
+        with patch.object(ai_generator.client.messages, "create") as mock_create:
             # Direct response without tool use
             response = Mock()
             response.stop_reason = "end_turn"
@@ -37,7 +39,7 @@ class TestAIGeneratorSequentialTools:
             result = ai_generator.generate_response(
                 query="What is 2 + 2?",
                 tools=tool_manager.get_tool_definitions(),
-                tool_manager=tool_manager
+                tool_manager=tool_manager,
             )
 
             assert result == "2 + 2 = 4"
@@ -45,9 +47,11 @@ class TestAIGeneratorSequentialTools:
 
             # Verify tools were offered but not used
             first_call = mock_create.call_args_list[0]
-            assert 'tools' in first_call.kwargs
+            assert "tools" in first_call.kwargs
 
-    def test_one_round_single_search(self, ai_generator, tool_manager, mock_vector_store):
+    def test_one_round_single_search(
+        self, ai_generator, tool_manager, mock_vector_store
+    ):
         """Test: Single tool call (1 round) - standard search"""
         # Setup mock search result
         mock_vector_store.search.return_value = SearchResults(
@@ -55,10 +59,10 @@ class TestAIGeneratorSequentialTools:
             metadata=[{"course_title": "Python 101", "lesson_number": 1}],
             distances=[0.1],
             links=["http://example.com"],
-            error=None
+            error=None,
         )
 
-        with patch.object(ai_generator.client.messages, 'create') as mock_create:
+        with patch.object(ai_generator.client.messages, "create") as mock_create:
             # First call: tool use
             tool_response = Mock()
             tool_response.stop_reason = "tool_use"
@@ -79,7 +83,7 @@ class TestAIGeneratorSequentialTools:
             result = ai_generator.generate_response(
                 query="What are Python basics in lesson 1?",
                 tools=tool_manager.get_tool_definitions(),
-                tool_manager=tool_manager
+                tool_manager=tool_manager,
             )
 
             assert result == "Python is a programming language"
@@ -88,9 +92,11 @@ class TestAIGeneratorSequentialTools:
 
             # Verify second call has tools (we're only on round 1 < MAX_TOOL_ROUNDS)
             second_call = mock_create.call_args_list[1]
-            assert 'tools' in second_call.kwargs
+            assert "tools" in second_call.kwargs
 
-    def test_two_rounds_sequential_searches(self, ai_generator, tool_manager, mock_vector_store):
+    def test_two_rounds_sequential_searches(
+        self, ai_generator, tool_manager, mock_vector_store
+    ):
         """Test: Two sequential tool calls (2 rounds) - compare lessons"""
         # Setup mock search results for two different calls
         mock_vector_store.search.side_effect = [
@@ -99,18 +105,18 @@ class TestAIGeneratorSequentialTools:
                 metadata=[{"course_title": "Python 101", "lesson_number": 1}],
                 distances=[0.1],
                 links=["http://example.com/lesson1"],
-                error=None
+                error=None,
             ),
             SearchResults(
                 documents=["Lesson 5 covers advanced decorators"],
                 metadata=[{"course_title": "Python 101", "lesson_number": 5}],
                 distances=[0.1],
                 links=["http://example.com/lesson5"],
-                error=None
-            )
+                error=None,
+            ),
         ]
 
-        with patch.object(ai_generator.client.messages, 'create') as mock_create:
+        with patch.object(ai_generator.client.messages, "create") as mock_create:
             # First call: tool use for lesson 1
             tool_response_1 = Mock()
             tool_response_1.stop_reason = "tool_use"
@@ -134,14 +140,16 @@ class TestAIGeneratorSequentialTools:
             # Third call: final comparison
             final_response = Mock()
             final_response.stop_reason = "end_turn"
-            final_response.content = [Mock(text="Lesson 1 covers basics, lesson 5 covers advanced topics")]
+            final_response.content = [
+                Mock(text="Lesson 1 covers basics, lesson 5 covers advanced topics")
+            ]
 
             mock_create.side_effect = [tool_response_1, tool_response_2, final_response]
 
             result = ai_generator.generate_response(
                 query="Compare lesson 1 and lesson 5",
                 tools=tool_manager.get_tool_definitions(),
-                tool_manager=tool_manager
+                tool_manager=tool_manager,
             )
 
             assert result == "Lesson 1 covers basics, lesson 5 covers advanced topics"
@@ -150,16 +158,16 @@ class TestAIGeneratorSequentialTools:
 
             # Verify API call progression
             # Call 1: Should have tools
-            assert 'tools' in mock_create.call_args_list[0].kwargs
+            assert "tools" in mock_create.call_args_list[0].kwargs
 
             # Call 2: Should have tools (round 1 < max 2)
-            assert 'tools' in mock_create.call_args_list[1].kwargs
+            assert "tools" in mock_create.call_args_list[1].kwargs
 
             # Call 3: Should NOT have tools (round 2 == max 2)
-            assert 'tools' not in mock_create.call_args_list[2].kwargs
+            assert "tools" not in mock_create.call_args_list[2].kwargs
 
             # Verify message structure in final call
-            final_call_messages = mock_create.call_args_list[2].kwargs['messages']
+            final_call_messages = mock_create.call_args_list[2].kwargs["messages"]
             assert len(final_call_messages) == 5  # user, asst, user, asst, user
 
     def test_tool_limit_enforced(self, ai_generator, tool_manager, mock_vector_store):
@@ -169,10 +177,10 @@ class TestAIGeneratorSequentialTools:
             metadata=[{"course_title": "Test", "lesson_number": 1}],
             distances=[0.1],
             links=["http://test.com"],
-            error=None
+            error=None,
         )
 
-        with patch.object(ai_generator.client.messages, 'create') as mock_create:
+        with patch.object(ai_generator.client.messages, "create") as mock_create:
             # Simulate Claude wanting to keep using tools
             tool_response_1 = Mock()
             tool_response_1.stop_reason = "tool_use"
@@ -202,7 +210,7 @@ class TestAIGeneratorSequentialTools:
             result = ai_generator.generate_response(
                 query="Complex query",
                 tools=tool_manager.get_tool_definitions(),
-                tool_manager=tool_manager
+                tool_manager=tool_manager,
             )
 
             # Should stop at 2 tools
@@ -211,20 +219,29 @@ class TestAIGeneratorSequentialTools:
 
             # Third call should NOT have tools
             third_call = mock_create.call_args_list[2]
-            assert 'tools' not in third_call.kwargs
+            assert "tools" not in third_call.kwargs
 
     def test_tool_error_in_round_1(self, ai_generator, tool_manager, mock_vector_store):
         """Test: Tool error in round 1 - error passed to Claude, can continue"""
         # First search returns error
         mock_vector_store.search.side_effect = [
-            SearchResults(documents=[], metadata=[], distances=[], links=[],
-                         error="No course found matching 'Nonexistent'"),
-            SearchResults(documents=["Fallback content"],
-                         metadata=[{"course_title": "Test", "lesson_number": 1}],
-                         distances=[0.1], links=["http://test.com"], error=None)
+            SearchResults(
+                documents=[],
+                metadata=[],
+                distances=[],
+                links=[],
+                error="No course found matching 'Nonexistent'",
+            ),
+            SearchResults(
+                documents=["Fallback content"],
+                metadata=[{"course_title": "Test", "lesson_number": 1}],
+                distances=[0.1],
+                links=["http://test.com"],
+                error=None,
+            ),
         ]
 
-        with patch.object(ai_generator.client.messages, 'create') as mock_create:
+        with patch.object(ai_generator.client.messages, "create") as mock_create:
             # First tool use
             tool_response_1 = Mock()
             tool_response_1.stop_reason = "tool_use"
@@ -254,7 +271,7 @@ class TestAIGeneratorSequentialTools:
             result = ai_generator.generate_response(
                 query="test",
                 tools=tool_manager.get_tool_definitions(),
-                tool_manager=tool_manager
+                tool_manager=tool_manager,
             )
 
             # Should complete successfully with fallback
@@ -262,21 +279,30 @@ class TestAIGeneratorSequentialTools:
             assert mock_create.call_count == 3
 
             # Verify error was passed to Claude in round 1
-            second_call_messages = mock_create.call_args_list[1].kwargs['messages']
-            tool_result_1 = second_call_messages[2]['content'][0]
-            assert "No course found matching 'Nonexistent'" in tool_result_1['content']
+            second_call_messages = mock_create.call_args_list[1].kwargs["messages"]
+            tool_result_1 = second_call_messages[2]["content"][0]
+            assert "No course found matching 'Nonexistent'" in tool_result_1["content"]
 
     def test_tool_error_in_round_2(self, ai_generator, tool_manager, mock_vector_store):
         """Test: Tool error in round 2 - Claude must answer with partial info"""
         mock_vector_store.search.side_effect = [
-            SearchResults(documents=["Good content from lesson 1"],
-                         metadata=[{"course_title": "Test", "lesson_number": 1}],
-                         distances=[0.1], links=["http://test.com"], error=None),
-            SearchResults(documents=[], metadata=[], distances=[], links=[],
-                         error="No course found matching 'lesson 5'")
+            SearchResults(
+                documents=["Good content from lesson 1"],
+                metadata=[{"course_title": "Test", "lesson_number": 1}],
+                distances=[0.1],
+                links=["http://test.com"],
+                error=None,
+            ),
+            SearchResults(
+                documents=[],
+                metadata=[],
+                distances=[],
+                links=[],
+                error="No course found matching 'lesson 5'",
+            ),
         ]
 
-        with patch.object(ai_generator.client.messages, 'create') as mock_create:
+        with patch.object(ai_generator.client.messages, "create") as mock_create:
             tool_response_1 = Mock()
             tool_response_1.stop_reason = "tool_use"
             tool_block_1 = Mock()
@@ -297,30 +323,34 @@ class TestAIGeneratorSequentialTools:
 
             final_response = Mock()
             final_response.stop_reason = "end_turn"
-            final_response.content = [Mock(text="Lesson 1 info available, lesson 5 search failed")]
+            final_response.content = [
+                Mock(text="Lesson 1 info available, lesson 5 search failed")
+            ]
 
             mock_create.side_effect = [tool_response_1, tool_response_2, final_response]
 
             result = ai_generator.generate_response(
                 query="Compare lessons",
                 tools=tool_manager.get_tool_definitions(),
-                tool_manager=tool_manager
+                tool_manager=tool_manager,
             )
 
             assert "Lesson 1 info available" in result
             assert mock_create.call_count == 3
 
-    def test_message_history_preservation(self, ai_generator, tool_manager, mock_vector_store):
+    def test_message_history_preservation(
+        self, ai_generator, tool_manager, mock_vector_store
+    ):
         """Test: Message history preserved across all rounds"""
         mock_vector_store.search.return_value = SearchResults(
             documents=["Content"],
             metadata=[{"course_title": "Test", "lesson_number": 1}],
             distances=[0.1],
             links=["http://test.com"],
-            error=None
+            error=None,
         )
 
-        with patch.object(ai_generator.client.messages, 'create') as mock_create:
+        with patch.object(ai_generator.client.messages, "create") as mock_create:
             tool_response_1 = Mock()
             tool_response_1.stop_reason = "tool_use"
             tool_block_1 = Mock()
@@ -351,27 +381,29 @@ class TestAIGeneratorSequentialTools:
                 query="New question",
                 conversation_history=history,
                 tools=tool_manager.get_tool_definitions(),
-                tool_manager=tool_manager
+                tool_manager=tool_manager,
             )
 
             # Verify system prompt includes history in ALL calls
             for call in mock_create.call_args_list:
-                system = call.kwargs['system']
+                system = call.kwargs["system"]
                 assert "Previous conversation:" in system
                 assert "Previous question" in system
                 assert "Previous answer" in system
 
-    def test_early_termination_natural(self, ai_generator, tool_manager, mock_vector_store):
+    def test_early_termination_natural(
+        self, ai_generator, tool_manager, mock_vector_store
+    ):
         """Test: Claude naturally terminates after first tool (doesn't use all rounds)"""
         mock_vector_store.search.return_value = SearchResults(
             documents=["Complete answer content"],
             metadata=[{"course_title": "Test", "lesson_number": 1}],
             distances=[0.1],
             links=["http://test.com"],
-            error=None
+            error=None,
         )
 
-        with patch.object(ai_generator.client.messages, 'create') as mock_create:
+        with patch.object(ai_generator.client.messages, "create") as mock_create:
             # First tool use
             tool_response = Mock()
             tool_response.stop_reason = "tool_use"
@@ -392,7 +424,7 @@ class TestAIGeneratorSequentialTools:
             result = ai_generator.generate_response(
                 query="Simple question",
                 tools=tool_manager.get_tool_definitions(),
-                tool_manager=tool_manager
+                tool_manager=tool_manager,
             )
 
             assert result == "Complete answer after one tool"
@@ -407,10 +439,10 @@ class TestAIGeneratorSequentialTools:
             metadata=[{"course_title": "Test", "lesson_number": 1}],
             distances=[0.1],
             links=["http://test.com"],
-            error=None
+            error=None,
         )
 
-        with patch.object(ai_generator.client.messages, 'create') as mock_create:
+        with patch.object(ai_generator.client.messages, "create") as mock_create:
             # Response with both text and tool use blocks
             mixed_response = Mock()
             mixed_response.stop_reason = "tool_use"
@@ -436,7 +468,7 @@ class TestAIGeneratorSequentialTools:
             result = ai_generator.generate_response(
                 query="test",
                 tools=tool_manager.get_tool_definitions(),
-                tool_manager=tool_manager
+                tool_manager=tool_manager,
             )
 
             # Should handle mixed content and execute tool
@@ -444,6 +476,6 @@ class TestAIGeneratorSequentialTools:
             assert mock_vector_store.search.call_count == 1
 
             # Verify assistant message includes BOTH blocks
-            second_call_messages = mock_create.call_args_list[1].kwargs['messages']
-            assistant_content = second_call_messages[1]['content']
+            second_call_messages = mock_create.call_args_list[1].kwargs["messages"]
+            assistant_content = second_call_messages[1]["content"]
             assert len(assistant_content) == 2  # text + tool_use

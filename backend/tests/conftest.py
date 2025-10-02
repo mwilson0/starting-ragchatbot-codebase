@@ -1,18 +1,20 @@
 """
 Shared pytest fixtures for RAG System tests
 """
-import sys
+
 import os
+import sys
 from pathlib import Path
 
 # Add backend directory to sys.path for imports
 backend_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_dir))
 
+from unittest.mock import MagicMock, Mock
+
 import pytest
-from unittest.mock import Mock, MagicMock
+from models import Course, CourseChunk, Lesson
 from vector_store import SearchResults
-from models import Course, Lesson, CourseChunk
 
 
 @pytest.fixture
@@ -32,19 +34,19 @@ def sample_course():
             Lesson(
                 lesson_number=1,
                 title="Introduction to Python",
-                lesson_link="https://example.com/python-basics/lesson1"
+                lesson_link="https://example.com/python-basics/lesson1",
             ),
             Lesson(
                 lesson_number=2,
                 title="Variables and Data Types",
-                lesson_link="https://example.com/python-basics/lesson2"
+                lesson_link="https://example.com/python-basics/lesson2",
             ),
             Lesson(
                 lesson_number=3,
                 title="Control Flow",
-                lesson_link="https://example.com/python-basics/lesson3"
-            )
-        ]
+                lesson_link="https://example.com/python-basics/lesson3",
+            ),
+        ],
     )
 
 
@@ -56,20 +58,20 @@ def sample_course_chunks(sample_course):
             content="Lesson 1 content: Python is a high-level programming language.",
             course_title=sample_course.title,
             lesson_number=1,
-            chunk_index=0
+            chunk_index=0,
         ),
         CourseChunk(
             content="Python supports multiple programming paradigms.",
             course_title=sample_course.title,
             lesson_number=1,
-            chunk_index=1
+            chunk_index=1,
         ),
         CourseChunk(
             content="Lesson 2 content: Variables store data values in Python.",
             course_title=sample_course.title,
             lesson_number=2,
-            chunk_index=2
-        )
+            chunk_index=2,
+        ),
     ]
 
 
@@ -79,18 +81,18 @@ def sample_search_results():
     return SearchResults(
         documents=[
             "Python is a high-level programming language.",
-            "Variables store data values in Python."
+            "Variables store data values in Python.",
         ],
         metadata=[
             {"course_title": "Python Basics", "lesson_number": 1},
-            {"course_title": "Python Basics", "lesson_number": 2}
+            {"course_title": "Python Basics", "lesson_number": 2},
         ],
         distances=[0.1, 0.15],
         links=[
             "https://example.com/python-basics/lesson1",
-            "https://example.com/python-basics/lesson2"
+            "https://example.com/python-basics/lesson2",
         ],
-        error=None
+        error=None,
     )
 
 
@@ -135,5 +137,9 @@ def mock_anthropic_final_response():
     """Mock final Anthropic API response after tool execution"""
     response = Mock()
     response.stop_reason = "end_turn"
-    response.content = [Mock(text="Python is a high-level programming language used for general-purpose programming.")]
+    response.content = [
+        Mock(
+            text="Python is a high-level programming language used for general-purpose programming."
+        )
+    ]
     return response

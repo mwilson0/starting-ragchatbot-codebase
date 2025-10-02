@@ -2,8 +2,10 @@
 Tests for CourseSearchTool.execute method
 Tests various scenarios including filters, error handling, and source tracking
 """
-import pytest
+
 from unittest.mock import Mock
+
+import pytest
 from search_tools import CourseSearchTool
 from vector_store import SearchResults
 
@@ -23,11 +25,11 @@ class TestCourseSearchToolExecute:
             documents=["Content about Python basics", "More Python content"],
             metadata=[
                 {"course_title": "Python 101", "lesson_number": 1},
-                {"course_title": "Python 101", "lesson_number": 2}
+                {"course_title": "Python 101", "lesson_number": 2},
             ],
             distances=[0.1, 0.2],
             links=["http://example.com/lesson1", "http://example.com/lesson2"],
-            error=None
+            error=None,
         )
         mock_vector_store.search.return_value = mock_results
 
@@ -36,9 +38,7 @@ class TestCourseSearchToolExecute:
 
         # Verify vector store was called correctly
         mock_vector_store.search.assert_called_once_with(
-            query="What is Python?",
-            course_name=None,
-            lesson_number=None
+            query="What is Python?", course_name=None, lesson_number=None
         )
 
         # Verify result formatting
@@ -58,23 +58,24 @@ class TestCourseSearchToolExecute:
         """Test execute with course_name filter"""
         mock_results = SearchResults(
             documents=["MCP server basics"],
-            metadata=[{"course_title": "Introduction to MCP Servers", "lesson_number": 1}],
+            metadata=[
+                {"course_title": "Introduction to MCP Servers", "lesson_number": 1}
+            ],
             distances=[0.1],
             links=["http://example.com/mcp-lesson1"],
-            error=None
+            error=None,
         )
         mock_vector_store.search.return_value = mock_results
 
         result = search_tool.execute(
-            query="How do MCP servers work?",
-            course_name="Introduction to MCP Servers"
+            query="How do MCP servers work?", course_name="Introduction to MCP Servers"
         )
 
         # Verify parameters passed correctly
         mock_vector_store.search.assert_called_once_with(
             query="How do MCP servers work?",
             course_name="Introduction to MCP Servers",
-            lesson_number=None
+            lesson_number=None,
         )
 
         # Verify formatting
@@ -88,19 +89,14 @@ class TestCourseSearchToolExecute:
             metadata=[{"course_title": "Advanced Topics", "lesson_number": 3}],
             distances=[0.15],
             links=["http://example.com/lesson3"],
-            error=None
+            error=None,
         )
         mock_vector_store.search.return_value = mock_results
 
-        result = search_tool.execute(
-            query="Explain advanced concepts",
-            lesson_number=3
-        )
+        result = search_tool.execute(query="Explain advanced concepts", lesson_number=3)
 
         mock_vector_store.search.assert_called_once_with(
-            query="Explain advanced concepts",
-            course_name=None,
-            lesson_number=3
+            query="Explain advanced concepts", course_name=None, lesson_number=3
         )
         assert "Lesson 3" in result
 
@@ -111,20 +107,16 @@ class TestCourseSearchToolExecute:
             metadata=[{"course_title": "Python 101", "lesson_number": 5}],
             distances=[0.05],
             links=["http://example.com/python-lesson5"],
-            error=None
+            error=None,
         )
         mock_vector_store.search.return_value = mock_results
 
         result = search_tool.execute(
-            query="decorators",
-            course_name="Python 101",
-            lesson_number=5
+            query="decorators", course_name="Python 101", lesson_number=5
         )
 
         mock_vector_store.search.assert_called_once_with(
-            query="decorators",
-            course_name="Python 101",
-            lesson_number=5
+            query="decorators", course_name="Python 101", lesson_number=5
         )
         assert "[Python 101 - Lesson 5]" in result
         assert "decorators" in result
@@ -136,13 +128,12 @@ class TestCourseSearchToolExecute:
             metadata=[],
             distances=[],
             links=[],
-            error="No course found matching 'NonexistentCourse'"
+            error="No course found matching 'NonexistentCourse'",
         )
         mock_vector_store.search.return_value = mock_results
 
         result = search_tool.execute(
-            query="test query",
-            course_name="NonexistentCourse"
+            query="test query", course_name="NonexistentCourse"
         )
 
         # Should return error message directly
@@ -153,38 +144,27 @@ class TestCourseSearchToolExecute:
     def test_execute_with_empty_results(self, search_tool, mock_vector_store):
         """Test execute when search returns no results"""
         mock_results = SearchResults(
-            documents=[],
-            metadata=[],
-            distances=[],
-            links=[],
-            error=None
+            documents=[], metadata=[], distances=[], links=[], error=None
         )
         mock_vector_store.search.return_value = mock_results
 
-        result = search_tool.execute(
-            query="obscure topic",
-            course_name="Python 101"
-        )
+        result = search_tool.execute(query="obscure topic", course_name="Python 101")
 
         # Should return appropriate message
         assert "No relevant content found in course 'Python 101'" in result
         assert len(search_tool.last_sources) == 0
 
-    def test_execute_with_empty_results_and_lesson_filter(self, search_tool, mock_vector_store):
+    def test_execute_with_empty_results_and_lesson_filter(
+        self, search_tool, mock_vector_store
+    ):
         """Test execute with no results and lesson filter"""
         mock_results = SearchResults(
-            documents=[],
-            metadata=[],
-            distances=[],
-            links=[],
-            error=None
+            documents=[], metadata=[], distances=[], links=[], error=None
         )
         mock_vector_store.search.return_value = mock_results
 
         result = search_tool.execute(
-            query="test",
-            course_name="Course X",
-            lesson_number=7
+            query="test", course_name="Course X", lesson_number=7
         )
 
         # Should mention both filters in the message
@@ -197,11 +177,11 @@ class TestCourseSearchToolExecute:
             metadata=[
                 {"course_title": "Course A", "lesson_number": 1},
                 {"course_title": "Course A", "lesson_number": 2},
-                {"course_title": "Course B", "lesson_number": 1}
+                {"course_title": "Course B", "lesson_number": 1},
             ],
             distances=[0.1, 0.2, 0.3],
             links=["link1", "link2", "link3"],
-            error=None
+            error=None,
         )
         mock_vector_store.search.return_value = mock_results
 
@@ -209,9 +189,18 @@ class TestCourseSearchToolExecute:
 
         # Verify all sources are tracked with correct format
         assert len(search_tool.last_sources) == 3
-        assert search_tool.last_sources[0] == {"text": "Course A - Lesson 1", "link": "link1"}
-        assert search_tool.last_sources[1] == {"text": "Course A - Lesson 2", "link": "link2"}
-        assert search_tool.last_sources[2] == {"text": "Course B - Lesson 1", "link": "link3"}
+        assert search_tool.last_sources[0] == {
+            "text": "Course A - Lesson 1",
+            "link": "link1",
+        }
+        assert search_tool.last_sources[1] == {
+            "text": "Course A - Lesson 2",
+            "link": "link2",
+        }
+        assert search_tool.last_sources[2] == {
+            "text": "Course B - Lesson 1",
+            "link": "link3",
+        }
 
     def test_execute_without_lesson_links(self, search_tool, mock_vector_store):
         """Test execute when results have no links"""
@@ -220,7 +209,7 @@ class TestCourseSearchToolExecute:
             metadata=[{"course_title": "Course X", "lesson_number": 1}],
             distances=[0.1],
             links=[None],  # No link available
-            error=None
+            error=None,
         )
         mock_vector_store.search.return_value = mock_results
 
@@ -237,11 +226,11 @@ class TestCourseSearchToolExecute:
             documents=["First document content", "Second document content"],
             metadata=[
                 {"course_title": "Python Basics", "lesson_number": 1},
-                {"course_title": "Python Basics", "lesson_number": 2}
+                {"course_title": "Python Basics", "lesson_number": 2},
             ],
             distances=[0.1, 0.15],
             links=["link1", "link2"],
-            error=None
+            error=None,
         )
         mock_vector_store.search.return_value = mock_results
 
@@ -253,14 +242,16 @@ class TestCourseSearchToolExecute:
         # Check separation (two newlines between results)
         assert "\n\n" in result
 
-    def test_execute_without_lesson_number_in_metadata(self, search_tool, mock_vector_store):
+    def test_execute_without_lesson_number_in_metadata(
+        self, search_tool, mock_vector_store
+    ):
         """Test execute when metadata doesn't include lesson_number (edge case)"""
         mock_results = SearchResults(
             documents=["General course content"],
             metadata=[{"course_title": "General Course"}],  # No lesson_number
             distances=[0.1],
             links=[None],
-            error=None
+            error=None,
         )
         mock_vector_store.search.return_value = mock_results
 

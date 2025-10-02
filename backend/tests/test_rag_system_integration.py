@@ -2,14 +2,16 @@
 Integration tests for RAG System
 Tests the complete query flow including source tracking and tool integration
 """
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-from rag_system import RAGSystem
-from config import Config
-from vector_store import SearchResults
-from models import Course, Lesson, CourseChunk
-import tempfile
+
 import os
+import tempfile
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
+from config import Config
+from models import Course, CourseChunk, Lesson
+from rag_system import RAGSystem
+from vector_store import SearchResults
 
 
 class TestRAGSystemIntegration:
@@ -51,18 +53,22 @@ class TestRAGSystemIntegration:
         # Should have both search and outline tools
         assert len(tool_definitions) == 2
 
-        tool_names = [tool['name'] for tool in tool_definitions]
-        assert 'search_course_content' in tool_names
-        assert 'get_course_outline' in tool_names
+        tool_names = [tool["name"] for tool in tool_definitions]
+        assert "search_course_content" in tool_names
+        assert "get_course_outline" in tool_names
 
-    def test_basic_query_flow_with_mocked_ai(self, rag_system, sample_course, sample_course_chunks):
+    def test_basic_query_flow_with_mocked_ai(
+        self, rag_system, sample_course, sample_course_chunks
+    ):
         """Test complete query flow with mocked AI generator"""
         # Add test data to vector store
         rag_system.vector_store.add_course_metadata(sample_course)
         rag_system.vector_store.add_course_content(sample_course_chunks)
 
         # Mock the AI generator to simulate tool use
-        with patch.object(rag_system.ai_generator.client.messages, 'create') as mock_create:
+        with patch.object(
+            rag_system.ai_generator.client.messages, "create"
+        ) as mock_create:
             # First response: Claude wants to search
             tool_use_response = Mock()
             tool_use_response.stop_reason = "tool_use"
@@ -78,7 +84,9 @@ class TestRAGSystemIntegration:
             # Second response: Final answer
             final_response = Mock()
             final_response.stop_reason = "end_turn"
-            final_response.content = [Mock(text="Python is a high-level programming language.")]
+            final_response.content = [
+                Mock(text="Python is a high-level programming language.")
+            ]
 
             mock_create.side_effect = [tool_use_response, final_response]
 
@@ -94,13 +102,17 @@ class TestRAGSystemIntegration:
             assert "text" in sources[0]
             assert "link" in sources[0]
 
-    def test_source_tracking_through_pipeline(self, rag_system, sample_course, sample_course_chunks):
+    def test_source_tracking_through_pipeline(
+        self, rag_system, sample_course, sample_course_chunks
+    ):
         """Test that sources are properly tracked from vector store to final response"""
         # Add test data
         rag_system.vector_store.add_course_metadata(sample_course)
         rag_system.vector_store.add_course_content(sample_course_chunks)
 
-        with patch.object(rag_system.ai_generator.client.messages, 'create') as mock_create:
+        with patch.object(
+            rag_system.ai_generator.client.messages, "create"
+        ) as mock_create:
             tool_use_response = Mock()
             tool_use_response.stop_reason = "tool_use"
 
@@ -128,7 +140,9 @@ class TestRAGSystemIntegration:
 
     def test_conversation_history_handling(self, rag_system):
         """Test that conversation history is maintained across queries"""
-        with patch.object(rag_system.ai_generator.client.messages, 'create') as mock_create:
+        with patch.object(
+            rag_system.ai_generator.client.messages, "create"
+        ) as mock_create:
             # Mock responses for two queries
             response1 = Mock()
             response1.stop_reason = "end_turn"
@@ -150,15 +164,22 @@ class TestRAGSystemIntegration:
 
             # Verify second call includes history in system prompt
             second_call = mock_create.call_args_list[1]
-            system_content = second_call.kwargs['system']
-            assert "Previous conversation:" in system_content or "First question" in system_content
+            system_content = second_call.kwargs["system"]
+            assert (
+                "Previous conversation:" in system_content
+                or "First question" in system_content
+            )
 
-    def test_source_reset_after_query(self, rag_system, sample_course, sample_course_chunks):
+    def test_source_reset_after_query(
+        self, rag_system, sample_course, sample_course_chunks
+    ):
         """Test that sources are reset after each query to avoid stale data"""
         rag_system.vector_store.add_course_metadata(sample_course)
         rag_system.vector_store.add_course_content(sample_course_chunks)
 
-        with patch.object(rag_system.ai_generator.client.messages, 'create') as mock_create:
+        with patch.object(
+            rag_system.ai_generator.client.messages, "create"
+        ) as mock_create:
             # First query with tool use
             tool_response = Mock()
             tool_response.stop_reason = "tool_use"
@@ -192,7 +213,9 @@ class TestRAGSystemIntegration:
         """Test that outline tool can be called and returns proper structure"""
         rag_system.vector_store.add_course_metadata(sample_course)
 
-        with patch.object(rag_system.ai_generator.client.messages, 'create') as mock_create:
+        with patch.object(
+            rag_system.ai_generator.client.messages, "create"
+        ) as mock_create:
             # Claude decides to use outline tool
             tool_response = Mock()
             tool_response.stop_reason = "tool_use"
@@ -207,7 +230,9 @@ class TestRAGSystemIntegration:
 
             final_response = Mock()
             final_response.stop_reason = "end_turn"
-            final_response.content = [Mock(text="The course has 3 lessons covering Python fundamentals.")]
+            final_response.content = [
+                Mock(text="The course has 3 lessons covering Python fundamentals.")
+            ]
 
             mock_create.side_effect = [tool_response, final_response]
 
@@ -220,7 +245,9 @@ class TestRAGSystemIntegration:
 
     def test_query_without_session(self, rag_system):
         """Test that queries work without providing a session_id"""
-        with patch.object(rag_system.ai_generator.client.messages, 'create') as mock_create:
+        with patch.object(
+            rag_system.ai_generator.client.messages, "create"
+        ) as mock_create:
             mock_response = Mock()
             mock_response.stop_reason = "end_turn"
             mock_response.content = [Mock(text="Answer")]
@@ -235,7 +262,9 @@ class TestRAGSystemIntegration:
 
     def test_empty_query_handling(self, rag_system):
         """Test system behavior with empty or whitespace queries"""
-        with patch.object(rag_system.ai_generator.client.messages, 'create') as mock_create:
+        with patch.object(
+            rag_system.ai_generator.client.messages, "create"
+        ) as mock_create:
             mock_response = Mock()
             mock_response.stop_reason = "end_turn"
             mock_response.content = [Mock(text="I need more information.")]
@@ -265,8 +294,12 @@ class TestRAGSystemIntegration:
             course_link="https://example.com/advanced",
             instructor="John Doe",
             lessons=[
-                Lesson(lesson_number=1, title="Decorators", lesson_link="http://example.com/adv/l1")
-            ]
+                Lesson(
+                    lesson_number=1,
+                    title="Decorators",
+                    lesson_link="http://example.com/adv/l1",
+                )
+            ],
         )
 
         rag_system.vector_store.add_course_metadata(course1)
@@ -274,13 +307,26 @@ class TestRAGSystemIntegration:
 
         # Add chunks for both
         from models import CourseChunk
+
         chunks = [
-            CourseChunk(content="Basic Python content", course_title="Python Basics", lesson_number=1, chunk_index=0),
-            CourseChunk(content="Advanced decorators", course_title="Advanced Python", lesson_number=1, chunk_index=0)
+            CourseChunk(
+                content="Basic Python content",
+                course_title="Python Basics",
+                lesson_number=1,
+                chunk_index=0,
+            ),
+            CourseChunk(
+                content="Advanced decorators",
+                course_title="Advanced Python",
+                lesson_number=1,
+                chunk_index=0,
+            ),
         ]
         rag_system.vector_store.add_course_content(chunks)
 
-        with patch.object(rag_system.ai_generator.client.messages, 'create') as mock_create:
+        with patch.object(
+            rag_system.ai_generator.client.messages, "create"
+        ) as mock_create:
             tool_response = Mock()
             tool_response.stop_reason = "tool_use"
 
@@ -305,7 +351,9 @@ class TestRAGSystemIntegration:
 
     def test_tool_error_propagation(self, rag_system):
         """Test that errors from tools are handled gracefully"""
-        with patch.object(rag_system.ai_generator.client.messages, 'create') as mock_create:
+        with patch.object(
+            rag_system.ai_generator.client.messages, "create"
+        ) as mock_create:
             # Mock tool use for non-existent course
             tool_response = Mock()
             tool_response.stop_reason = "tool_use"
